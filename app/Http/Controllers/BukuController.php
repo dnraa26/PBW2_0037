@@ -3,8 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Buku;
+use Illuminate\Support\Facades\DB;
 use App\Http\Requests\StoreBukuRequest;
 use App\Http\Requests\UpdateBukuRequest;
+use Illuminate\Support\Facades\Storage;
+use RealRashid\SweetAlert\Facades\Alert;
+
 
 class BukuController extends Controller
 {
@@ -13,7 +17,9 @@ class BukuController extends Controller
      */
     public function index()
     {
-        return view('buku/index');
+        return view('buku/index', [
+            'bukus' => DB::table('bukus')->get()
+        ]);
     }
 
     /**
@@ -29,18 +35,18 @@ class BukuController extends Controller
      */
     public function store(StoreBukuRequest $request)
     {
-        $ValidateData = $request->validate([
-
-            'judul' => "required",
-            'penulis' => "required",
-            'kategori' => "required",
-            'sampul' => "required|image|file|max:2048",
+        $validatedData = $request->validate([
+            'judul' => 'required',
+            'penulis' => 'required',
+            'kategori' => 'required',
+            'sampul' => 'required|image|file|max:2048',
         ]);
 
         if ($request->file('sampul')) {
-            $ValidateData['sampul'] = $request->file('sampul')->store('/sampul-buku');
+            $validatedData['sampul'] = $request->file('sampul')->store('/sampul-buku');
         }
-        Buku::create($ValidateData);
+        Buku::create($validatedData);
+        Alert::warning('Buku berhasil di tambah');
         return redirect('/buku');
     }
 
@@ -55,24 +61,53 @@ class BukuController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Buku $buku)
+    public function edit($id)
     {
-        //
+        $test = DB ::table('bukus') ->where ('id', $id) -> get ();
+        return view ('buku/update' , [
+            'buku' => $test[0]
+        ]);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateBukuRequest $request, Buku $buku)
-    {
-        //
+    public function update(UpdateBukuRequest $request, $id)
+{
+    $validatedData = $request->validate([
+        'judul' => 'required',
+        'penulis' => 'required',
+        'kategori' => 'required',
+        'sampul' => 'image|file|max:2048',
+    ]);
+
+    if ($request->file('sampul')) {
+        if ($request->sampulLama) {
+            Storage::delete($request->sampulLama);
+        }
+        $validatedData['sampul'] = $request->file('sampul')->store('/sampul-buku');
     }
+
+    Buku::where('id', $id)->update($validatedData);
+    Alert::warning('Buku berhasil di update');
+    return redirect('/buku');
+}
+
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Buku $buku)
+    public function destroy($id)
     {
-        //
+        $test = DB::table('bukus')->select('sampul')
+            ->where('id', $id)
+            ->get();
+        if ($test[0]->sampul) {
+            Storage::delete($test[0]->sampul);
+        }
+        Buku::destroy($id);
+        Alert::warning('Buku berhasil di hapus');
+        return redirect('/buku');
     }
+
 }
